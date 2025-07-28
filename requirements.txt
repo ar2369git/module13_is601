@@ -51,3 +51,5 @@ psycopg2-binary
 passlib[bcrypt]
 pydantic[email]
 email-validator
+python-jose[cryptography]
+python-dotenv
