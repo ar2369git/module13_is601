@@ -1,38 +1,39 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/><title>Register</title></head>
-<body>
-  <h1>Register</h1>
-  <form id="reg-form">
-    <input id="email" type="email" placeholder="Email" required /><br/>
-    <input id="username" type="text" placeholder="Username" required /><br/>
-    <input id="password" type="password" placeholder="Password (≥8 chars)" required /><br/>
-    <input id="confirm" type="password" placeholder="Confirm Password" required /><br/>
-    <button type="submit">Register</button>
-  </form>
-  <div id="msg"></div>
-  <script>
-    const form = document.getElementById("reg-form");
-    form.addEventListener("submit", async e => {
-      e.preventDefault();
-      const email = form.email.value, username = form.username.value;
-      const pw = form.password.value, conf = form.confirm.value;
-      if (pw.length < 8) return msg("Password too short");
-      if (pw !== conf) return msg("Passwords must match");
-      const resp = await fetch("/register", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({email,username,password:pw})
-      });
-      const j = await resp.json();
-      if (resp.ok) {
-        localStorage.setItem("token", j.access_token);
-        msg("Registered!");
-      } else {
-        msg(j.detail||j.error);
+  <head><meta charset="utf‑8"><title>Register</title></head>
+  <body>
+    <h1>Register</h1>
+    <form id="register-form">
+      <input type="email"    name="email"             required placeholder="email"/>
+      <input type="text"     name="username"          required minlength="3" placeholder="username"/>
+      <input type="password" name="password"          required minlength="8" placeholder="password"/>
+      <input type="password" name="confirm_password"  required minlength="8" placeholder="confirm password"/>
+      <button type="button" id="register">Register</button>
+    </form>
+    <div id="message"></div>
+    <script>
+      async function doRegister(){
+        const e=document.querySelector("input[name=email]").value;
+        const u=document.querySelector("input[name=username]").value;
+        const p=document.querySelector("input[name=password]").value;
+        const c=document.querySelector("input[name=confirm_password]").value;
+        if(p!==c){
+          return document.getElementById("message").innerText="Passwords must match";
+        }
+        const resp = await fetch("/register", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({username:u,email:e,password:p})
+        });
+        const body = await resp.json();
+        if(resp.ok){
+          localStorage.setItem("token", body.token);
+          document.getElementById("message").innerText="Registered!";
+        } else {
+          document.getElementById("message").innerText=body.error;
+        }
       }
-    });
-    function msg(txt){ document.getElementById("msg").innerText = txt; }
-  </script>
-</body>
+      document.getElementById("register").onclick = doRegister;
+    </script>
+  </body>
 </html>

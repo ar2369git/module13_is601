@@ -1,32 +1,32 @@
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/><title>Login</title></head>
-<body>
-  <h1>Login</h1>
-  <form id="login-form">
-    <input id="email" type="email" placeholder="Email or Username" required /><br/>
-    <input id="password" type="password" placeholder="Password" required /><br/>
-    <button type="submit">Login</button>
-  </form>
-  <div id="msg"></div>
-  <script>
-    document.getElementById("login-form").addEventListener("submit", async e => {
-      e.preventDefault();
-      const u = e.target.email.value, pw = e.target.password.value;
-      const resp = await fetch("/login", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({username_or_email:u,password:pw})
-      });
-      const j = await resp.json();
-      if (resp.ok) {
-        localStorage.setItem("token", j.access_token);
-        document.getElementById("msg").innerText = "Logged in!";
-      } else {
-        document.getElementById("msg").innerText = j.detail || j.error;
+  <head><meta charset="utf‑8"><title>Login</title></head>
+  <body>
+    <h1>Login</h1>
+    <form id="login-form">
+      <input type="text"     name="username_or_email" required placeholder="username or email"/>
+      <input type="password" name="password"          required placeholder="password"/>
+      <button type="button" id="login">Login</button>
+    </form>
+    <div id="message"></div>
+    <script>
+      async function doLogin(){
+        const u=document.querySelector("input[name=username_or_email]").value;
+        const p=document.querySelector("input[name=password]").value;
+        const resp = await fetch("/login", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({username_or_email:u,password:p})
+        });
+        const body = await resp.json();
+        if(resp.ok){
+          localStorage.setItem("token", body.token);
+          document.getElementById("message").innerText="Logged in!";
+        } else {
+          document.getElementById("message").innerText=body.error;
+        }
       }
-    });
-  </script>
-</body>
+      document.getElementById("login").onclick = doLogin;
+    </script>
+  </body>
 </html>
-

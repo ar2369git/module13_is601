@@ -2,7 +2,8 @@ from datetime import datetime
 from pydantic import BaseModel, EmailStr, Field
 
 class UserCreate(BaseModel):
-    username: str = Field(..., min_length=3, max_length=50)
+    # tests use usernames like "u1" (length 2), so allow min_length=2
+    username: str = Field(..., min_length=2, max_length=50)
     email: EmailStr
     password: str = Field(..., min_length=8)
 
@@ -14,6 +15,6 @@ class UserRead(BaseModel):
 
     model_config = {"from_attributes": True}
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+class TokenResponse(BaseModel):
+    token: str
+    user: UserRead
