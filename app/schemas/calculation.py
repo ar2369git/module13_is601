@@ -30,3 +30,9 @@ class CalculationRead(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+class CalculationIn(BaseModel):
+    a: float
+    b: float
+
+class CalculationOut(BaseModel):
+    result: float
