@@ -1,32 +1,38 @@
 <!DOCTYPE html>
-<html>
-  <head><meta charset="utf‑8"><title>Login</title></head>
-  <body>
-    <h1>Login</h1>
-    <form id="login-form">
-      <input type="text"     name="username_or_email" required placeholder="username or email"/>
-      <input type="password" name="password"          required placeholder="password"/>
-      <button type="button" id="login">Login</button>
-    </form>
-    <div id="message"></div>
-    <script>
-      async function doLogin(){
-        const u=document.querySelector("input[name=username_or_email]").value;
-        const p=document.querySelector("input[name=password]").value;
-        const resp = await fetch("/login", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({username_or_email:u,password:p})
-        });
-        const body = await resp.json();
-        if(resp.ok){
-          localStorage.setItem("token", body.token);
-          document.getElementById("message").innerText="Logged in!";
-        } else {
-          document.getElementById("message").innerText=body.error;
-        }
-      }
-      document.getElementById("login").onclick = doLogin;
-    </script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login</title>
+</head>
+<body>
+  <h1>Login</h1>
+  <form id="login-form">
+    <input name="username_or_email" placeholder="Username or Email" required /><br/>
+    <input name="password" type="password" placeholder="Password" required /><br/>
+    <button type="submit">Login</button>
+  </form>
+  <div id="message" style="margin-top:1em; color:red;"></div>
+
+  <script>
+    document.getElementById("login-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        username_or_email: form.username_or_email.value,
+        password: form.password.value
+      };
+      const resp = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      document.getElementById("message").innerText = resp.ok
+        ? "Login successful"
+        : data.detail || data.message || JSON.stringify(data);
+    });
+  </script>
+  <script src="/static/auth.js"></script>
+
+</body>
 </html>

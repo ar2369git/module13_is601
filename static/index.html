@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Calculator</title>
+</head>
+<body>
+  <h1>Hello World</h1>
+
+  <div>
+    <input type="number" id="a" name="a" placeholder="First number">
+    <input type="number" id="b" name="b" placeholder="Second number">
+    <select id="operation">
+      <option value="add">Add</option>
+      <option value="subtract">Subtract</option>
+      <option value="multiply">Multiply</option>
+      <option value="divide">Divide</option>
+    </select>
+    <button id="calculate">Calculate</button>
+  </div>
+
+  <div id="result" style="margin-top:1em; font-weight:bold;"></div>
+
+  <script>
+    document.getElementById("calculate").addEventListener("click", () => {
+      const a = parseFloat(document.getElementById("a").value);
+      const b = parseFloat(document.getElementById("b").value);
+      const op = document.getElementById("operation").value;
+
+      fetch(`/${op}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ a, b })
+      })
+      .then(response => {
+        if (!response.ok) throw new Error(`Error ${response.status}`);
+        return response.json();
+      })
+      .then(data => {
+        // ← HERE is the key change:
+        // instead of doing `innerText = data`, we pull out `data.result`
+        document.getElementById("result").innerText = data.result;
+      })
+      .catch(err => {
+        document.getElementById("result").innerText = err.message;
+      });
+    });
+  </script>
+  <script src="/static/calculator.js"></script>
+
+</body>
+</html>

@@ -1,39 +1,44 @@
 <!DOCTYPE html>
-<html>
-  <head><meta charset="utf‑8"><title>Register</title></head>
-  <body>
-    <h1>Register</h1>
-    <form id="register-form">
-      <input type="email"    name="email"             required placeholder="email"/>
-      <input type="text"     name="username"          required minlength="3" placeholder="username"/>
-      <input type="password" name="password"          required minlength="8" placeholder="password"/>
-      <input type="password" name="confirm_password"  required minlength="8" placeholder="confirm password"/>
-      <button type="button" id="register">Register</button>
-    </form>
-    <div id="message"></div>
-    <script>
-      async function doRegister(){
-        const e=document.querySelector("input[name=email]").value;
-        const u=document.querySelector("input[name=username]").value;
-        const p=document.querySelector("input[name=password]").value;
-        const c=document.querySelector("input[name=confirm_password]").value;
-        if(p!==c){
-          return document.getElementById("message").innerText="Passwords must match";
-        }
-        const resp = await fetch("/register", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({username:u,email:e,password:p})
-        });
-        const body = await resp.json();
-        if(resp.ok){
-          localStorage.setItem("token", body.token);
-          document.getElementById("message").innerText="Registered!";
-        } else {
-          document.getElementById("message").innerText=body.error;
-        }
-      }
-      document.getElementById("register").onclick = doRegister;
-    </script>
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register</title>
+</head>
+<body>
+  <h1>Register</h1>
+  <form id="register-form">
+    <input name="email"        placeholder="Email"             required /><br/>
+    <input name="username"     placeholder="Username"          required /><br/>
+    <input name="password"     type="password" placeholder="Password" required /><br/>
+    <input name="confirm_password"
+           type="password" placeholder="Confirm Password" required /><br/>
+    <button type="submit">Register</button>
+  </form>
+  <div id="message" style="margin-top:1em; color:red;"></div>
+
+  <script>
+    document.getElementById("register-form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const form = e.target;
+      const payload = {
+        email: form.email.value,
+        username: form.username.value,
+        password: form.password.value,
+        confirm_password: form.confirm_password.value
+      };
+      const resp = await fetch("/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      document.getElementById("message").innerText = resp.ok
+        ? "Registration successful"
+        : data.detail || data.message || JSON.stringify(data);
+    });
+  </script>
+
+  <script src="/static/auth.js"></script>
+
+</body>
 </html>

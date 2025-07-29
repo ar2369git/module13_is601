@@ -1,11 +1,13 @@
+from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr
+
 
 class UserCreate(BaseModel):
-    # tests use usernames like "u1" (length 2), so allow min_length=2
-    username: str = Field(..., min_length=2, max_length=50)
+    username: str
     email: EmailStr
-    password: str = Field(..., min_length=8)
+    password: str
+
 
 class UserRead(BaseModel):
     id: int
@@ -13,8 +15,19 @@ class UserRead(BaseModel):
     email: EmailStr
     created_at: datetime
 
-    model_config = {"from_attributes": True}
+    class Config:
+        orm_mode = True
 
-class TokenResponse(BaseModel):
-    token: str
-    user: UserRead
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+
+class LoginData(BaseModel):
+    username_or_email: str
+    password: str

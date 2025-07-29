@@ -1,139 +1,91 @@
-import logging
-from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
+# main.py
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, EmailStr, constr
-from sqlalchemy import (
-    create_engine, Column, Integer, String, DateTime, or_
-)
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from sqlalchemy.pool import StaticPool
-
-# ---------- Database setup ----------
-
-# In‑memory SQLite, shared across all sessions
-DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-
-Base = declarative_base()
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True, nullable=False)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-# ---------- Pydantic schemas ----------
-
-class RegisterRequest(BaseModel):
-    email: EmailStr
-    username: constr(min_length=3)
-    password: constr(min_length=8)
-    confirm_password: str
-
-class LoginRequest(BaseModel):
-    username_or_email: str
-    password: str
-
-# ---------- App & startup ----------
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from app.schemas.user import UserCreate, UserRead, LoginData
+from app.models.user import User
+from app.security import get_password_hash, verify_password
+from app.db import get_db
 
 app = FastAPI()
 
-# Serve your static folder (make sure register.html & login.html are in ./static)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+# 1) Mount your 'static' folder so you can serve index.html + any assets
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-
-# ---------- Exception handler ----------
-
-@app.exception_handler(Request)
-async def validation_exception_handler(request: Request, exc):
-    # collapse all validation errors into one message
-    if hasattr(exc, "errors"):
-        msgs = [e.get("msg", "") for e in exc.errors()]
-        detail = "; ".join(msgs)
-        logging.error(f"ValidationError on {request.url.path}: {detail}")
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": detail},
-        )
-    # fallback
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={"detail": str(exc)},
-    )
-
-# ---------- Dependency ----------
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# ---------- Auth endpoints ----------
+# Serve any .html in static/ at the root
+@app.get("/{page_name}.html", response_class=HTMLResponse)
+async def serve_html(page_name: str):
+    file_path = f"static/{page_name}.html"
+    return FileResponse(file_path)
 
 @app.post("/register", status_code=201)
-def register(req: RegisterRequest, db: Session = Depends(get_db)):
-    if req.password != req.confirm_password:
-        raise HTTPException(400, "Passwords do not match")
-    # hash with bcrypt
-    import bcrypt
-    hashed = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
-    user = User(username=req.username, email=req.email, password_hash=hashed)
-    db.add(user)
-    try:
-        db.commit()
-        db.refresh(user)
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(400, "Username or email already registered")
-    return {"id": user.id, "email": user.email}
-
-@app.post("/login")
-def login(req: LoginRequest, db: Session = Depends(get_db)):
-    import bcrypt
-    user = (
+def register(user: UserCreate, db: Session = Depends(get_db)):
+    # 1) check for existing username or email
+    exists = (
         db.query(User)
-          .filter(
-            or_(
-              User.username == req.username_or_email,
-              User.email == req.username_or_email
-            )
-          )
+          .filter(or_(User.username == user.username, User.email == user.email))
           .first()
     )
-    if not user or not bcrypt.checkpw(
-        req.password.encode(), user.password_hash.encode()
-    ):
-        raise HTTPException(400, "Invalid credentials")
-    return {"id": user.id, "email": user.email}
+    if exists:
+        raise HTTPException(status_code=400, detail="User already exists")
+    # 2) hash & save
+    hashed = hash_password(user.password)
+    db_user = User(username=user.username, email=user.email, password_hash=hashed)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    # 3) return just the id/email as your tests expect
+    return {"id": db_user.id, "email": db_user.email}
 
-# legacy endpoints
 
-@app.post("/users/register", status_code=201)
-def users_register(req: RegisterRequest, db: Session = Depends(get_db)):
-    return register(req, db)
+@app.post("/login")
+def login(data: LoginData, db: Session = Depends(get_db)):
+    # find by username _or_ email
+    user = (
+        db.query(User)
+          .filter(or_(
+             User.username == data.username_or_email,
+             User.email == data.username_or_email
+          ))
+          .first()
+    )
+    if not user or not verify_password(data.password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Invalid credentials")
+    # create a JWT
+    token = create_access_token({"sub": user.username})
+    return {"access_token": token, "token_type": "bearer"}
 
-@app.post("/users/login")
-def users_login(req: LoginRequest, db: Session = Depends(get_db)):
-    return login(req, db)
+# 2) Pydantic models for request and response
+class CalculationIn(BaseModel):
+    a: float
+    b: float
 
-# ---------- Root & misc ----------
+class CalculationOut(BaseModel):
+    result: float
 
-@app.get("/", response_class=HTMLResponse)
+# 3) Root route returns your index.html from static/
+@app.get("/", response_class=FileResponse)
 def read_index():
-    # Because we mounted static at "/", this will serve "index.html"
-    return FileResponse("static/index.html")
+    return "static/index.html"
+
+# 4) Four simple endpoints, each returning {"result": ...}
+@app.post("/add", response_model=CalculationOut)
+def add(calc: CalculationIn):
+    return CalculationOut(result=calc.a + calc.b)
+
+@app.post("/subtract", response_model=CalculationOut)
+def subtract(calc: CalculationIn):
+    return CalculationOut(result=calc.a - calc.b)
+
+@app.post("/multiply", response_model=CalculationOut)
+def multiply(calc: CalculationIn):
+    return CalculationOut(result=calc.a * calc.b)
+
+@app.post("/divide", response_model=CalculationOut)
+def divide(calc: CalculationIn):
+    if calc.b == 0:
+        raise HTTPException(status_code=400, detail="Division by zero")
+    return CalculationOut(result=calc.a / calc.b)
