@@ -18,6 +18,8 @@ class UserCreate(BaseModel):
         if pw != cpw:
             raise ValueError("Passwords do not match")
         return values
+    
+    
 
 # ── Login payload ───────────────────────────────────────────────────────────────
 class LoginData(BaseModel):
